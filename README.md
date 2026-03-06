@@ -183,21 +183,13 @@ Auth:    HMAC-SHA256 authentication tag
 
 ### Dependencies
 
-```txt
-# Core
-cryptography>=42.0.0        # DTLS, X509, AES-GCM
-pynacl>=1.5.0              # libsodium (X25519, Ed25519)
-protobuf>=4.25.0           # Binary serialization
-
-# Networking
-aiortc>=1.5.0              # ICE/STUN for NAT traversal
-aiohttp>=3.9.0             # Local HTTPS proxy
-
-# Testing & Development
-scapy>=2.5.0               # Packet crafting/fuzzing
-pytest>=7.4.0              # Unit testing
-pytest-asyncio>=0.21.0     # Async test support
-```
+- cryptography (DTLS, X509, AES-GCM)
+- pynacl (libsodium - X25519, Ed25519)
+- protobuf (Binary serialization)
+- aiortc (ICE/STUN for NAT traversal)
+- aiohttp (Local HTTPS proxy)
+- scapy (Packet crafting/fuzzing)
+- pytest (Unit testing)
 
 ## 📁 Project Structure
 
@@ -279,284 +271,99 @@ SLP/
 │
 └── examples/
     ├── desktop_app/                    # Desktop app integration
-    │   ├── klar_example.py
-    │   └── webengine_integration.py
     └── gateway_client/                 # Browser integration
-        └── fetch_example.js
 ```
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
-### 1. Installation
+### Installation
 
-```bash
-# Clone repository
-git clone https://github.com/CKCHDX/SLP.git
-cd SLP
+1. Clone the repository
+2. Create Python 3.11+ virtual environment
+3. Install dependencies from requirements.txt
+4. Generate SSL certificates
+5. Configure domains and backend servers
 
-# Create virtual environment
-python3.11 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
+### Desktop App Integration
 
-# Install dependencies
-pip install -r requirements.txt
+**For Klar, Sverkan, and Upsum desktop applications:**
 
-# Generate SSL certificates
-./scripts/generate_certs.sh
-```
+1. Embed local SL proxy in your .exe application
+2. Configure QtWebEngine to load from localhost:8443
+3. Proxy automatically translates HTTPS → SL protocol
+4. No changes needed to your existing frontend code
 
-### 2. Configuration
+### Browser Access
 
-**config/domains.yaml** - Service mapping:
-```yaml
-services:
-  klar:
-    domain: klar.oscyra.solutions
-    sl_id: klar-001
-    backend_ip: 192.168.1.100
-    backend_port: 4271
-    
-  sverkan:
-    domain: sverkan.oscyra.solutions
-    sl_id: sverkan-001
-    backend_ip: 192.168.1.101
-    backend_port: 4271
-    
-  upsum:
-    domain: upsum.oscyra.solutions
-    sl_id: upsum-001
-    backend_ip: 192.168.1.102
-    backend_port: 4271
-```
+**For standard web browser users:**
 
-**config/proxy.conf** - Local proxy for desktop apps:
-```ini
-[proxy]
-host = localhost
-port = 8443
-ssl_cert = certs/localhost.crt
-ssl_key = certs/localhost.key
-
-[backend]
-# Direct IP - no DNS needed
-server_ip = 192.168.1.100
-server_port = 4271
-protocol = sl_udp
-encryption = DTLS_1_3_AES_256_GCM
-```
-
-### 3. Run Backend Server
-
-```bash
-# Start SL backend server
-python src/server/core.py \
-  --sl-id klar-001 \
-  --port 4271 \
-  --encryption DTLS_1_3_AES_256_GCM
-
-# Output:
-# ✅ SL Server started on 0.0.0.0:4271
-# 🔐 Encryption: DTLS 1.3 + AES-256-GCM + Noise Protocol
-# 📡 SL-ID: klar-001
-# ⚡ Ready for connections
-```
-
-### 4A. Desktop App Integration (QtWebEngine)
-
-```python
-# Your existing desktop app (klar.exe, sverkan.exe, upsum.exe)
-import sys
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from src.proxy.local_server import LocalSLProxy
-
-class KlarApp:
-    def __init__(self):
-        # Start local SL proxy in background
-        self.sl_proxy = LocalSLProxy(
-            server_ip="192.168.1.100",  # Direct IP
-            server_port=4271,
-            sl_id="klar-001"
-        )
-        asyncio.create_task(self.sl_proxy.start())
-        
-        # QtWebEngine loads from localhost
-        self.browser = QWebEngineView()
-        self.browser.setUrl("https://localhost:8443")  # ← Local proxy
-        self.browser.show()
-        
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    klar = KlarApp()
-    sys.exit(app.exec())
-
-# Result:
-# - Frontend: Your existing web UI (unchanged)
-# - Backend: SL protocol (military-grade, <100ms)
-# - No code changes to frontend!
-```
-
-### 4B. Browser Users (Gateway Hub)
-
-```bash
-# Deploy gateway on VPS
-./scripts/deploy_gateway.sh \
-  --domain klar.oscyra.solutions \
-  --ssl-cert /etc/letsencrypt/live/klar.oscyra.solutions/fullchain.pem \
-  --ssl-key /etc/letsencrypt/live/klar.oscyra.solutions/privkey.pem
-
-# Users access normally:
-# https://klar.oscyra.solutions  ← Gateway translates to SL
-```
-
-## 🔧 Usage Examples
-
-### Desktop App with Local Proxy
-
-```python
-from src.proxy.proxy_client import SLProxyClient
-
-# In your desktop app startup
-async def main():
-    # Start local proxy (runs in background)
-    proxy = SLProxyClient(
-        backend_ip="192.168.1.100",
-        backend_port=4271,
-        frontend_url="https://localhost:8443"
-    )
-    await proxy.start()
-    
-    # Your QtWebEngine loads from localhost:8443
-    # All requests automatically go via SL protocol
-    # Frontend code unchanged!
-```
-
-### Pure SL Client (Advanced)
-
-```python
-from src.client.sl_client import SLClient
-
-# Direct SL protocol connection (no HTTP)
-async def main():
-    client = SLClient(
-        server_ip="192.168.1.100",
-        port=4271,
-        sl_id="klar-001",
-        encryption="DTLS_1_3_AES_256_GCM"
-    )
-    
-    await client.connect()
-    
-    # Send request
-    response = await client.send({
-        "action": "search",
-        "query": "quantum computing",
-        "filters": {"language": "sv"}
-    })
-    
-    print(f"Results: {len(response['results'])}")
-    print(f"Latency: {response['latency_ms']}ms")  # <100ms
-```
-
-### Browser Integration (JavaScript)
-
-```javascript
-// No changes needed - just use normal fetch()
-// Gateway handles HTTPS → SL translation
-
-fetch('https://klar.oscyra.solutions/api/search', {
-  method: 'POST',
-  headers: {'Content-Type': 'application/json'},
-  body: JSON.stringify({query: 'quantum computing'})
-})
-.then(res => res.json())
-.then(data => console.log('Results:', data));
-
-// Backend receives via SL protocol (military-grade)
-// Browser never knows SL exists
-```
+1. Deploy gateway hub on VPS server
+2. Configure DNS (klar.oscyra.solutions → Gateway IP)
+3. Install Let's Encrypt SSL certificate
+4. Gateway translates incoming HTTPS to SL protocol
+5. Users access normally via https://service.oscyra.solutions
 
 ## 🧪 Testing
 
 ### Unit Tests
 
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Test packet encoding/decoding
-pytest tests/test_packet.py
-
-# Test encryption
-pytest tests/test_crypto.py
-
-# Test local proxy
-pytest tests/test_proxy.py
-```
+- Packet encoding/decoding validation
+- Encryption algorithm verification
+- Local proxy functionality
+- Gateway routing logic
 
 ### Performance Benchmarks
 
-```bash
-# Latency test
-python scripts/benchmark.py --test latency --requests 10000
+- Latency measurements (target: <100ms desktop, <500ms browser)
+- Throughput testing (target: 10k+ requests/second)
+- Comparison tests (HTTPS vs SL protocol)
 
-# Throughput test
-python scripts/benchmark.py --test throughput --duration 60
+### Security Audits
 
-# Comparison test (HTTPS vs SL)
-python scripts/benchmark.py --compare
-```
-
-### Security Audit
-
-```bash
-# Packet fuzzing
-scapy -c "sl_fuzz_test()"
-
-# Encryption validation
-python tests/test_crypto.py --validate-fips140
-
-# Nmap vulnerability scan
-nmap -sU --script ssl-enum-ciphers -p 4271 <server-ip>
-```
+- Packet fuzzing with Scapy
+- FIPS 140-2 encryption validation
+- Nmap vulnerability scanning
+- Penetration testing
 
 ## 📊 Roadmap
 
 ### Phase 1: Core Protocol ✅ (Week 1-2)
-- [x] Binary packet format
-- [x] DTLS 1.3 encryption
-- [x] Noise Protocol key exchange
-- [x] UDP socket handling
-- [x] Sequence numbers + anti-replay
+- Binary packet format implementation
+- DTLS 1.3 encryption layer
+- Noise Protocol key exchange
+- UDP socket handling with asyncio
+- Anti-replay protection
 
 ### Phase 2: Local Proxy 🔄 (Week 2-3) **IN PROGRESS**
-- [x] HTTPS server (localhost:8443)
-- [x] HTTPS → SL translator
-- [ ] QtWebEngine integration example
-- [ ] Self-signed cert generator
-- [ ] Performance optimization (<100ms)
+- HTTPS server on localhost:8443
+- HTTPS ↔ SL protocol translator
+- QtWebEngine integration
+- Self-signed certificate generation
+- Performance optimization (<100ms target)
 
 ### Phase 3: Gateway Hub 📋 (Week 3-4) **PLANNED**
-- [ ] Public HTTPS server
-- [ ] Domain → SL-ID routing
-- [ ] Load balancing
-- [ ] Let's Encrypt integration
-- [ ] Monitoring + logging
+- Public HTTPS server with TLS 1.3
+- Domain to SL-ID routing system
+- Load balancing for multiple backends
+- Let's Encrypt SSL automation
+- Monitoring and logging infrastructure
 
 ### Phase 4: Production 📋 (Week 4-5) **PLANNED**
-- [ ] Desktop app integration (Klar, Sverkan, Upsum)
-- [ ] VPS deployment
-- [ ] DNS configuration
-- [ ] Performance testing (10k req/s)
-- [ ] Security audit
+- Integration with Klar desktop app
+- Integration with Sverkan desktop app
+- Integration with Upsum desktop app
+- VPS deployment and configuration
+- DNS setup for oscyra.solutions
+- Performance testing at scale
+- Security audit and compliance verification
 
 ### Future Enhancements 🔮
-- [ ] P2P NAT traversal (ICE/STUN)
-- [ ] Mobile apps (Android/iOS)
-- [ ] C++ port (even lower latency)
-- [ ] WebRTC integration
-- [ ] Multi-datacenter support
+- P2P NAT traversal with ICE/STUN
+- Native mobile apps (Android/iOS)
+- C++ port for ultra-low latency
+- WebRTC integration
+- Multi-datacenter support
+- Geographic load balancing
 
 ## 🛡️ Security Considerations
 
@@ -574,48 +381,27 @@ nmap -sU --script ssl-enum-ciphers -p 4271 <server-ip>
 
 ### Best Practices
 
-1. **Rotate keys regularly**: Ephemeral keys per session
-2. **Monitor logs**: Audit all connections
-3. **Update dependencies**: Keep crypto libraries current
-4. **Firewall rules**: UDP 4271 only from known IPs
-5. **Rate limiting**: Max 1000 req/s per client
-6. **Certificate pinning**: Desktop apps pin server certs
+1. **Key Rotation**: Ephemeral keys generated per session
+2. **Audit Logging**: Monitor all connections and authentication attempts
+3. **Dependency Updates**: Keep cryptography libraries current
+4. **Firewall Rules**: Restrict UDP port 4271 to known IP ranges
+5. **Rate Limiting**: Maximum 1000 requests/second per client
+6. **Certificate Pinning**: Desktop apps pin server certificates
+7. **Regular Audits**: Quarterly security reviews and penetration testing
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please follow:
 
-### Development Setup
-
-```bash
-# Fork and clone
-git clone https://github.com/YOUR_USERNAME/SLP.git
-cd SLP
-
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make changes, add tests
-pytest tests/
-
-# Format code
-black src/ tests/
-isort src/ tests/
-
-# Submit PR
-git push origin feature/amazing-feature
-```
-
-### Code Style
-
-- Follow PEP 8
-- Type hints required
-- Docstrings for all public APIs
-- Test coverage >90%
+- PEP 8 code style
+- Type hints for all functions
+- Comprehensive docstrings
+- Unit tests with >90% coverage
+- Security review for crypto changes
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE)
+MIT License - see LICENSE file
 
 ```
 Secure Line Protocol (SL)
@@ -625,15 +411,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+copies of the Software.
 ```
 
 ## 🙏 Acknowledgments
@@ -642,7 +420,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 - **Cryptography**: libsodium, OpenSSL, cryptography.io
 - **Testing**: Scapy, Wireshark, pytest
 - **Infrastructure**: Cloudflare, Netlify
-- **Built for**: Oscyra.solutions ecosystem
+- **Built for**: Oscyra.solutions ecosystem (Klar, Sverkan, Upsum)
 
 ## 📞 Contact
 
