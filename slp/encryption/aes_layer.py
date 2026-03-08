@@ -9,7 +9,7 @@ Uses AES-256 in GCM mode for authenticated encryption.
 import os
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from typing import Tuple
 
 
@@ -55,7 +55,7 @@ class AESLayer:
         if salt is None:
             salt = os.urandom(16)
         
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=AESLayer.KEY_SIZE,
             salt=salt,
