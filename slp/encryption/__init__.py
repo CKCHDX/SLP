@@ -1,17 +1,7 @@
-"""
-SLP Encryption Layer Module
+"""SLP Encryption Layers."""
 
-Multi-layer encryption support:
-- TLS 1.3
-- DTLS 1.3
-- Noise Protocol
-- Key management and generation
-"""
+from .aes_layer import AESLayer
+from .chacha_layer import ChaChaLayer
+from .noise_layer import NoiseLayer
 
-__all__ = [
-    "crypto",
-    "key_manager",
-    "tls_handler",
-    "dtls_handler",
-    "noise_handler",
-]
+__all__ = ['AESLayer', 'ChaChaLayer', 'NoiseLayer']
