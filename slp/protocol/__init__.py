@@ -1,17 +1,5 @@
-"""
-SL Protocol Core Module
+"""SLP Protocol Definitions."""
 
-Core protocol implementation:
-- SLP packet creation and parsing
-- Routing and state management
-- Connection lifecycle
-- Error handling
-"""
+from .packet import SLPPacket
 
-__all__ = [
-    "slp_core",
-    "packet",
-    "routing",
-    "state_machine",
-    "error_handling",
-]
+__all__ = ['SLPPacket']

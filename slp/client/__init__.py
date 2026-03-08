@@ -1,16 +1,5 @@
-"""
-SLP Client Library Module
+"""SLP Client Library."""
 
-Client libraries for service communication:
-- Main SLP client
-- Async/await support
-- Synchronous wrapper
-- Connection handling
-"""
+from .simple_client import SimpleSLPClient
 
-__all__ = [
-    "slp_client",
-    "async_client",
-    "sync_client",
-    "connection",
-]
+__all__ = ['SimpleSLPClient']
