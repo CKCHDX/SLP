@@ -27,7 +27,7 @@ class NoiseLayer:
     
     def __init__(self):
         """Initialize Noise protocol state."""
-        # Generate ephemeral keypair
+        # Generate static keypair
         self.static_private = X25519PrivateKey.generate()
         self.static_public = self.static_private.public_key()
         
@@ -36,6 +36,7 @@ class NoiseLayer:
         self.send_cipher: Optional[ChaCha20Poly1305] = None
         self.recv_cipher: Optional[ChaCha20Poly1305] = None
         self.handshake_complete = False
+        self.is_initiator = None  # Track role for key derivation
     
     def get_public_key(self) -> bytes:
         """Get public key bytes."""
@@ -46,6 +47,8 @@ class NoiseLayer:
     
     def initiate_handshake(self) -> bytes:
         """Initiate Noise handshake (client side)."""
+        self.is_initiator = True
+        
         # Generate ephemeral keypair
         self.ephemeral_private = X25519PrivateKey.generate()
         ephemeral_public = self.ephemeral_private.public_key()
@@ -63,6 +66,8 @@ class NoiseLayer:
     
     def respond_handshake(self, initiator_message: bytes) -> bytes:
         """Respond to Noise handshake (server side)."""
+        self.is_initiator = False
+        
         if len(initiator_message) != 64:  # 32 bytes ephemeral + 32 bytes static
             raise ValueError("Invalid handshake message")
         
@@ -82,8 +87,8 @@ class NoiseLayer:
         shared2 = self.static_private.exchange(initiator_ephemeral)
         shared3 = self.ephemeral_private.exchange(self.remote_static_public)
         
-        # Derive encryption keys
-        self._derive_keys(shared1 + shared2 + shared3)
+        # Derive encryption keys (responder = server)
+        self._derive_keys(shared1 + shared2 + shared3, is_initiator=False)
         
         # Response: ephemeral public key + static public key
         response = (
@@ -114,12 +119,12 @@ class NoiseLayer:
         shared2 = self.ephemeral_private.exchange(self.remote_static_public)
         shared3 = self.static_private.exchange(responder_ephemeral)
         
-        # Derive encryption keys
-        self._derive_keys(shared1 + shared2 + shared3)
+        # Derive encryption keys (initiator = client)
+        self._derive_keys(shared1 + shared2 + shared3, is_initiator=True)
         
         self.handshake_complete = True
     
-    def _derive_keys(self, shared_secret: bytes):
+    def _derive_keys(self, shared_secret: bytes, is_initiator: bool):
         """Derive send and receive keys from shared secret."""
         # Use HKDF to derive two keys
         hkdf = HKDF(
@@ -130,8 +135,18 @@ class NoiseLayer:
         )
         key_material = hkdf.derive(shared_secret)
         
-        send_key = key_material[:32]
-        recv_key = key_material[32:]
+        # Split into two keys
+        key1 = key_material[:32]
+        key2 = key_material[32:]
+        
+        # Initiator (client) sends with key1, receives with key2
+        # Responder (server) sends with key2, receives with key1
+        if is_initiator:
+            send_key = key1
+            recv_key = key2
+        else:
+            send_key = key2
+            recv_key = key1
         
         self.send_cipher = ChaCha20Poly1305(send_key)
         self.recv_cipher = ChaCha20Poly1305(recv_key)
@@ -190,3 +205,11 @@ if __name__ == "__main__":
     assert message == decrypted
     print("\n✅ Noise Protocol test passed!")
     print("✅ Perfect forward secrecy enabled!")
+    
+    # Test reverse direction
+    print("\nStep 5: Testing reverse communication (server to client)")
+    message2 = b"Response from server"
+    encrypted2 = server.encrypt(message2)
+    decrypted2 = client.decrypt(encrypted2)
+    assert message2 == decrypted2
+    print("✅ Bidirectional communication works!")
