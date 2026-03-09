@@ -14,11 +14,21 @@ Provides military-grade security with:
 - Protection against quantum attacks (layered approach)
 """
 
+import sys
 import time
+from pathlib import Path
 from typing import Tuple, Optional
-from .aes_layer import AESLayer
-from .chacha_layer import ChaChaLayer
-from .noise_layer import NoiseLayer
+
+# Handle imports when run directly
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from slp.encryption.aes_layer import AESLayer
+    from slp.encryption.chacha_layer import ChaChaLayer
+    from slp.encryption.noise_layer import NoiseLayer
+else:
+    from .aes_layer import AESLayer
+    from .chacha_layer import ChaChaLayer
+    from .noise_layer import NoiseLayer
 
 
 class TripleLayerEncryption:
